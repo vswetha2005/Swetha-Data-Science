@@ -1,0 +1,110 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.utils import to_categorical
+import gradio as gr # Now gradio can be imported
+# 2. Load Dataset
+df = pd.read_csv("handwritten_digits_dataset.csv")
+print("Shape of df:", df.shape)
+print("First few rows:")
+print(df.head())
+# 3. Data Exploration
+print(df.head())
+print(df.describe())
+# 4. Check for Missing Values and Duplicates
+print("Missing Values:\n", df.isnull().sum())
+print("Duplicates:", df.duplicated().sum())
+5.#visualization some digits
+import numpy as np
+
+# Display first 10 digits as images
+fig, axes = plt.subplots(1, 10, figsize=(10, 3))
+for i in range(10):
+    image = np.array(df.iloc[i, :-1]).reshape(8, 8)  # reshape 64 features into 8x8 image
+    label = df.iloc[i, -1]
+    axes[i].imshow(image, cmap='gray')
+    axes[i].set_title(f"Label: {label}")
+    axes[i].axis('off')
+plt.tight_layout()
+plt.show()
+# 6. Identify Features and Target
+X = df.drop("label", axis=1).values
+y = df["label"].values
+print()
+# 7. Convert categorical column to numerical – already numeric
+print(df["label"].unique())
+# 8. One-hot Encoding
+y_cat = to_categorical(y, num_classes=10)
+print("Original y:", y[:5])
+print("One-hot encoded y_cat:\n", y_cat[:5])
+# 9. Feature Scaling
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+print("Original (first row):", X[0])
+print("Scaled (first row):", X_scaled[0])
+# 10. Train-Test Split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y_cat, test_size=0.2, random_state=42)
+print("Training features:", X_train.shape)
+print("Test features:", X_test.shape)
+print("Training labels:", y_train.shape)
+print("Test labels:", y_test.shape)
+# 11. Model Building
+model = Sequential([
+    Dense(64, activation='relu', input_shape=(64,)),
+    Dense(64, activation='relu'),
+    Dense(10, activation='softmax')
+])
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+# 12. Train Model
+model.fit(X_train, y_train, epochs=20, batch_size=32, validation_split=0.1)
+# 13. Evaluation
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f"Test Accuracy: {accuracy:.4f}")
+# 14. Make Predictions from New Input
+def predict_digit(input_array):
+    input_array = np.array(input_array).reshape(1, -1)
+    input_scaled = scaler.transform(input_array)
+    prediction = model.predict(input_scaled)
+    return int(np.argmax(prediction))
+    # Pick a test sample
+sample = X_test[0]
+# Make a prediction
+print("Predicted digit:", predict_digit(sample))
+# 15. Create Prediction Function for App
+def predict_from_csv(file):
+    df = pd.read_csv(file.name)
+    print("Input DataFrame:")
+    print(df)
+
+    predictions = []
+    for _, row in df.iterrows():
+        input_data = row.values.reshape(1, -1)
+        print("Input for prediction:", input_data)
+        pred = predict_digit(input_data)
+        print("Prediction:", pred)
+        predictions.append(pred)
+
+    result_df = df.copy()
+    result_df["Predicted_Label"] = predictions
+    print("Result DataFrame:")
+    print(result_df)
+
+    return result_df
+    print("Reading CSV from:", file.name)
+ 16. Gradio Interface
+interface = gr.Interface(
+    fn=predict_from_csv,
+    inputs=gr.File(label="Upload CSV with 64 Features"),
+    outputs=gr.Dataframe(label="Predictions"),
+    title="Handwritten Digit Recognizer",
+    description="Upload a CSV file containing 8x8 pixel image data (64 columns)."
+)
+# The print statement was removed because 'pred' is not defined in this scope
+# print("Prediction:", pred) # This line was causing the error
+# 17. Launch App
+interface.launch()
